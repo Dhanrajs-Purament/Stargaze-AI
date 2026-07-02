@@ -55,7 +55,7 @@ fun ObjectDetailSheet(
         System.currentTimeMillis() + timeOffsetMinutes * 60_000L
     }
 
-    val (title, subtitle, blurb, facts, color) = buildDetail(obj, location, epochMillis)
+    val (title, subtitle, blurb, facts, _) = buildDetail(obj, location, epochMillis)
 
     SkySheet(onDismiss = onDismiss) {
         Text(title, color = StarColors.Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold)

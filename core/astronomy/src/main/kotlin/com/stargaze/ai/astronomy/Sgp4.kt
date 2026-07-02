@@ -218,7 +218,6 @@ class Sgp4(private val tle: Tle) {
         val xl = xmp + omega + xnode + noUnkozai * templ
 
         val beta = sqrt(1.0 - e * e)
-        val xn = KE / a.pow(1.5)
 
         // Long-period periodics.
         val axn = e * cos(omega)
@@ -253,8 +252,6 @@ class Sgp4(private val tle: Tle) {
         val pl = a * tempA
         val r = a * (1.0 - ecosE)
         val temp1 = 1.0 / r
-        val rdot = KE * sqrt(a) * esinE * temp1
-        val rfdot = KE * sqrt(pl) * temp1
         val temp2 = a * temp1
         val betal = sqrt(tempA)
         val temp3 = 1.0 / (1.0 + betal)
