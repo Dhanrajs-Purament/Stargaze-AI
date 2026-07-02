@@ -1,0 +1,95 @@
+package com.stargaze.ai.astronomy
+
+/**
+ * Bright-star catalog (75 stars) with RA/Dec (J2000, degrees), apparent magnitude, parent
+ * constellation, and an educational blurb. Bundled on-device for full offline operation —
+ * this is the curated core catalog described in the offline strategy. The Pro tier streams the
+ * deep Gaia catalog on top of this.
+ */
+object StarCatalog {
+
+    val stars: List<Star> = listOf(
+        Star("Sirius", 101.287, -16.716, -1.46, "Canis Major", "The brightest star in the night sky, only 8.6 light-years away."),
+        Star("Canopus", 95.988, -52.696, -0.74, "Carina", "Second-brightest star; a yellow-white supergiant."),
+        Star("Arcturus", 213.915, 19.182, -0.05, "Boötes", "A red giant racing through the galaxy at high speed."),
+        Star("Vega", 279.234, 38.784, 0.03, "Lyra", "Was the North Star ~12,000 years ago and will be again."),
+        Star("Capella", 79.172, 45.998, 0.08, "Auriga", "Actually a system of four stars in two pairs."),
+        Star("Rigel", 78.634, -8.202, 0.13, "Orion", "A blue supergiant ~120,000x more luminous than the Sun."),
+        Star("Procyon", 114.825, 5.225, 0.34, "Canis Minor", "The eighth-brightest star; a close neighbour at 11 ly."),
+        Star("Betelgeuse", 88.793, 7.407, 0.50, "Orion", "A red supergiant that may go supernova soon (astronomically)."),
+        Star("Achernar", 24.428, -57.237, 0.46, "Eridanus", "The flattest known star, spun fast by rapid rotation."),
+        Star("Hadar", 210.956, -60.373, 0.61, "Centaurus", "A hot blue giant pair near Alpha Centauri."),
+        Star("Altair", 297.696, 8.868, 0.76, "Aquila", "Spins so fast a day there lasts ~9 hours."),
+        Star("Aldebaran", 68.980, 16.509, 0.85, "Taurus", "The fiery red eye of the bull."),
+        Star("Antares", 247.352, -26.432, 1.09, "Scorpius", "A vast red supergiant; rival of Mars."),
+        Star("Spica", 201.298, -11.161, 1.04, "Virgo", "A close binary of two blue stars."),
+        Star("Pollux", 116.329, 28.026, 1.14, "Gemini", "The nearest giant star to the Sun, with a planet."),
+        Star("Fomalhaut", 344.413, -29.622, 1.16, "Piscis Austrinus", "Surrounded by a debris ring with a candidate planet."),
+        Star("Deneb", 310.358, 45.280, 1.25, "Cygnus", "One of the most luminous stars known, ~2,600 ly away."),
+        Star("Regulus", 152.093, 11.967, 1.35, "Leo", "The little king at the heart of the lion."),
+        Star("Castor", 113.650, 31.888, 1.58, "Gemini", "A remarkable system of six stars."),
+        Star("Polaris", 37.954, 89.264, 1.98, "Ursa Minor", "The current North Star, almost exactly over Earth's axis."),
+        Star("Kochab", 222.676, 74.156, 2.07, "Ursa Minor", "A guardian of the pole in the Little Dipper."),
+        Star("Pherkad", 230.182, 71.834, 3.00, "Ursa Minor", "The second guardian of the pole."),
+        Star("Bellatrix", 81.283, 6.350, 1.64, "Orion", "The Amazon star, Orion's left shoulder."),
+        Star("Alnilam", 84.053, -1.202, 1.69, "Orion", "The central star of Orion's Belt."),
+        Star("Alnitak", 85.190, -1.943, 1.77, "Orion", "Eastern star of Orion's Belt; near the Flame Nebula."),
+        Star("Mintaka", 83.002, -0.299, 2.25, "Orion", "Western star of Orion's Belt, almost on the equator."),
+        Star("Saiph", 86.939, -9.670, 2.07, "Orion", "Marks Orion's right knee."),
+        Star("Dubhe", 165.932, 61.751, 1.79, "Ursa Major", "A pointer star of the Big Dipper."),
+        Star("Merak", 165.460, 56.382, 2.34, "Ursa Major", "The lower pointer of the Big Dipper."),
+        Star("Phecda", 178.458, 53.695, 2.43, "Ursa Major", "A star of the Dipper's bowl."),
+        Star("Megrez", 183.857, 57.033, 3.31, "Ursa Major", "Faintest star of the Big Dipper."),
+        Star("Alioth", 193.507, 55.960, 1.76, "Ursa Major", "Brightest star of the Big Dipper."),
+        Star("Mizar", 200.981, 54.925, 2.23, "Ursa Major", "Famous double star with companion Alcor."),
+        Star("Alkaid", 206.885, 49.313, 1.85, "Ursa Major", "The tip of the Big Dipper's handle."),
+        Star("Algol", 47.042, 40.956, 2.12, "Perseus", "The Demon Star, a famous eclipsing binary."),
+        Star("Mirfak", 51.081, 49.861, 1.79, "Perseus", "The brightest star in Perseus."),
+        Star("Hamal", 31.793, 23.462, 2.00, "Aries", "The head of the ram."),
+        Star("Alpheratz", 2.097, 29.090, 2.06, "Andromeda", "Links Andromeda to the Square of Pegasus."),
+        Star("Mirach", 17.433, 35.621, 2.05, "Andromeda", "A signpost to the Andromeda Galaxy."),
+        Star("Almach", 30.975, 42.330, 2.10, "Andromeda", "A beautiful colour-contrast double."),
+        Star("Markab", 346.190, 15.205, 2.49, "Pegasus", "A corner of the Great Square of Pegasus."),
+        Star("Scheat", 345.943, 28.083, 2.42, "Pegasus", "A red giant corner of the Square."),
+        Star("Algenib", 3.309, 15.184, 2.83, "Pegasus", "A corner of the Great Square."),
+        Star("Enif", 326.046, 9.875, 2.39, "Pegasus", "The nose of the winged horse."),
+        Star("Nunki", 283.816, -26.297, 2.05, "Sagittarius", "A bright star of the teapot."),
+        Star("Kaus Australis", 276.043, -34.385, 1.85, "Sagittarius", "Brightest in Sagittarius; base of the teapot."),
+        Star("Shaula", 263.402, -37.104, 1.62, "Scorpius", "The stinger of the scorpion."),
+        Star("Sargas", 264.330, -42.998, 1.86, "Scorpius", "A bright southern star of the scorpion."),
+        Star("Wei", 253.499, -34.293, 2.29, "Scorpius", "A star along the scorpion's tail."),
+        Star("Dschubba", 240.083, -22.622, 2.29, "Scorpius", "The forehead of the scorpion."),
+        Star("Gacrux", 187.791, -57.113, 1.63, "Crux", "Top of the Southern Cross."),
+        Star("Acrux", 186.650, -63.099, 0.77, "Crux", "Brightest star of the Southern Cross."),
+        Star("Mimosa", 191.930, -59.689, 1.25, "Crux", "A hot blue star of the Cross."),
+        Star("Delta Cru", 183.786, -58.749, 2.79, "Crux", "The fourth point of the Cross."),
+        Star("Alphard", 141.897, -8.659, 1.98, "Hydra", "The solitary one in the water snake."),
+        Star("Denebola", 177.265, 14.572, 2.11, "Leo", "The lion's tail."),
+        Star("Algieba", 154.993, 19.842, 2.08, "Leo", "A golden double in the lion's mane."),
+        Star("Zosma", 168.527, 20.524, 2.56, "Leo", "A star on the lion's back."),
+        Star("Rasalhague", 263.734, 12.560, 2.07, "Ophiuchus", "Head of the serpent-bearer."),
+        Star("Eltanin", 269.152, 51.489, 2.23, "Draco", "The dragon's eye."),
+        Star("Diphda", 10.897, -17.987, 2.04, "Cetus", "The tail of the sea-monster."),
+        Star("Schedar", 10.127, 56.537, 2.24, "Cassiopeia", "The queen's heart in the W."),
+        Star("Caph", 2.295, 59.150, 2.28, "Cassiopeia", "A star of the celestial W."),
+        Star("Gamma Cas", 14.177, 60.717, 2.47, "Cassiopeia", "An unstable, shell-shedding star."),
+        Star("Ruchbah", 21.454, 60.235, 2.66, "Cassiopeia", "A star of the W of Cassiopeia."),
+        Star("Segin", 28.599, 63.670, 3.35, "Cassiopeia", "The last star of the celestial W."),
+        Star("Adhara", 104.656, -28.972, 1.50, "Canis Major", "Once the brightest UV source in our sky."),
+        Star("Wezen", 107.098, -26.393, 1.83, "Canis Major", "A yellow-white supergiant."),
+        Star("Mirzam", 95.675, -17.956, 1.98, "Canis Major", "The announcer that rises just before Sirius."),
+        Star("Menkalinan", 89.882, 44.947, 1.90, "Auriga", "An eclipsing binary near Capella."),
+        Star("Elnath", 81.573, 28.608, 1.65, "Taurus", "Shared point between Taurus and Auriga."),
+        Star("Alhena", 99.428, 16.399, 1.92, "Gemini", "A bright foot-star of the twins."),
+        Star("Sadr", 305.557, 40.257, 2.23, "Cygnus", "The heart of the Northern Cross."),
+        Star("Gienah Cygni", 311.553, 33.970, 2.48, "Cygnus", "A wing-tip of the swan."),
+        Star("Delta Cygni", 296.244, 45.131, 2.87, "Cygnus", "A star on the swan's other wing."),
+        Star("Albireo", 292.680, 27.960, 3.05, "Cygnus", "A gorgeous gold-and-blue double star."),
+        Star("Tarazed", 296.565, 10.613, 2.72, "Aquila", "A bright giant beside Altair."),
+    )
+
+    /** Index by name for O(1) lookup when resolving constellation line endpoints and queries. */
+    val byName: Map<String, Star> = stars.associateBy { it.name }
+
+    fun starsIn(constellation: String): List<Star> = stars.filter { it.constellation == constellation }
+}

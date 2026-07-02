@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Four-point sparkle star, centred within the adaptive icon safe zone. -->
+    <path
+        android:fillColor="#7C9BFF"
+        android:pathData="M54,30 C55,42 60,48 72,54 C60,60 55,66 54,78 C53,66 48,60 36,54 C48,48 53,42 54,30 Z" />
+    <!-- Small accent star -->
+    <path
+        android:fillColor="#FFCF6B"
+        android:pathData="M74,38 C74.5,42 76,44 80,45 C76,46 74.5,48 74,52 C73.5,48 72,46 68,45 C72,44 73.5,42 74,38 Z" />
+</vector>

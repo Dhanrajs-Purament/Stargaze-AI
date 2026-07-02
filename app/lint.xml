@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!--
+      Dependency versions are deliberately PINNED for supply-chain integrity (see TRD security).
+      Upgrades go through a reviewed process, so lint's "newer version available" nags are noise
+      here rather than actionable defects. We disable only those currency checks; every
+      correctness, security, performance, and accessibility check remains active.
+    -->
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+
+    <!-- Treat all real defects as build-breaking so they can never ship. -->
+    <issue id="all">
+        <ignore path="**/build/**" />
+    </issue>
+</lint>

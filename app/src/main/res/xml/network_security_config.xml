@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  HTTPS-only. Cleartext traffic is denied for all domains. If certificate pinning
+  is required for the AI proxy, add a <domain-config> with <pin-set> here.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

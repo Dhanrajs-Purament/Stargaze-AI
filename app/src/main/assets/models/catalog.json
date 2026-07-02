@@ -1,0 +1,34 @@
+{
+  "models": [
+    {
+      "id": "gemma3-1b-q4",
+      "label": "Standard — Gemma 3 (1B)",
+      "description": "Fast and lightweight. Runs well on most phones. Great everyday astronomy answers, fully offline.",
+      "fileName": "gemma3-1b-it-q4.task",
+      "url": "https://huggingface.co/Ruaan42/stargaze-ai-models/resolve/main/gemma3-1b-it-q4.task",
+      "sha256": "ddfaf1210d8b4d1b812b5fadb6652999e852c8be6dd9abe353b9213a25262c10",
+      "approxMb": 530,
+      "minRamMb": 3000
+    },
+    {
+      "id": "gemma-3n-e2b",
+      "label": "Advanced — Gemma 3n (E2B)",
+      "description": "Google's mobile-optimized model. Richer, more capable answers. Best on recent mid-to-high-end phones.",
+      "fileName": "gemma-3n-e2b-int4.task",
+      "url": "https://huggingface.co/Ruaan42/stargaze-ai-models/resolve/main/gemma-3n-e2b-int4.task",
+      "sha256": "a7f544cfee68f579fabadb22aa9284faa4020a0f5358d0e15b49fdd4cefe4200",
+      "approxMb": 3000,
+      "minRamMb": 6000
+    },
+    {
+      "id": "gemma-3n-e4b",
+      "label": "Top tier — Gemma 3n (E4B)",
+      "description": "The most capable on-device model. Highest-quality answers. Needs a flagship phone with plenty of RAM.",
+      "fileName": "gemma-3n-e4b-int4.task",
+      "url": "https://huggingface.co/Ruaan42/stargaze-ai-models/resolve/main/gemma-3n-e4b-int4.task",
+      "sha256": "2b8e9d04bf8c5c50346d248c5e24a7e65102251c94dee6f04d5dce5ce3e6ac4f",
+      "approxMb": 4200,
+      "minRamMb": 8000
+    }
+  ]
+}
