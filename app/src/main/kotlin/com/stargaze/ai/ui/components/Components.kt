@@ -30,7 +30,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selectableGroup
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -91,15 +95,16 @@ fun StarGazeBottomBar(
                 ),
             )
             .navigationBarsPadding()
-            .padding(horizontal = 4.dp, vertical = 6.dp),
+            .padding(horizontal = 4.dp, vertical = 6.dp)
+            .semantics { selectableGroup() },
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Destination.entries.forEach { dest ->
-            val selected = dest == current
+            val isSelected = dest == current
             NavItem(
                 destination = dest,
-                selected = selected,
+                isSelected = isSelected,
                 onClick = { onSelect(dest) },
             )
         }
@@ -109,7 +114,7 @@ fun StarGazeBottomBar(
 @Composable
 private fun NavItem(
     destination: Destination,
-    selected: Boolean,
+    isSelected: Boolean,
     onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -120,12 +125,12 @@ private fun NavItem(
         label = "navItemScale",
     )
     val iconColor by animateColorAsState(
-        targetValue = if (selected) StarColors.Accent else StarColors.Faint,
+        targetValue = if (isSelected) StarColors.Accent else StarColors.Faint,
         animationSpec = spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMedium),
         label = "navItemColor",
     )
     val bgColor by animateColorAsState(
-        targetValue = if (selected) StarColors.Accent.copy(alpha = 0.13f) else Color.Transparent,
+        targetValue = if (isSelected) StarColors.Accent.copy(alpha = 0.13f) else Color.Transparent,
         animationSpec = spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMedium),
         label = "navItemBg",
     )
@@ -143,7 +148,9 @@ private fun NavItem(
             .defaultMinSize(minWidth = 56.dp, minHeight = 48.dp)
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .semantics(mergeDescendants = true) {
-                contentDescription = if (selected) "${destination.label}, selected" else destination.label
+                role = Role.Tab
+                this.selected = isSelected
+                contentDescription = destination.label
             },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),

@@ -21,12 +21,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,18 +47,35 @@ import com.stargaze.ai.ui.theme.StarColors
 @Composable
 fun LearnSheet(onDismiss: () -> Unit, viewModel: LearnViewModel = hiltViewModel()) {
     val quiz by viewModel.quiz.collectAsState()
+    var selectedTour by remember { mutableStateOf<Tour?>(null) }
 
     SkySheet(onDismiss = onDismiss, maxHeightFraction = 0.88f) {
         when {
-            quiz.active -> QuizActive(quiz, viewModel::answer)
-            quiz.finished -> QuizResult(quiz.score, quiz.questions.size, onAgain = viewModel::startQuiz, onClose = viewModel::closeQuiz)
-            else -> LearnHome(viewModel, onStartQuiz = viewModel::startQuiz)
+            quiz.active || quiz.finished -> {
+                // Clear tour selection when entering quiz so back goes back to tour home.
+                selectedTour = null
+                when {
+                    quiz.active -> QuizActive(quiz, viewModel::answer)
+                    quiz.finished -> QuizResult(quiz.score, quiz.questions.size, onAgain = viewModel::startQuiz, onClose = viewModel::closeQuiz)
+                }
+            }
+            selectedTour != null -> TourDetail(
+                tour = selectedTour!!,
+                onBack = { selectedTour = null },
+                onAdvance = { viewModel.advanceTour(selectedTour!!.title) },
+            )
+            else -> LearnHome(viewModel, onStartQuiz = viewModel::startQuiz, onSelectTour = { selectedTour = it })
         }
     }
 }
 
 @Composable
-private fun LearnHome(viewModel: LearnViewModel, onStartQuiz: () -> Unit) {
+private fun LearnHome(
+    viewModel: LearnViewModel,
+    onStartQuiz: () -> Unit,
+    onSelectTour: (Tour) -> Unit,
+) {
+    val tours by viewModel.tours.collectAsState()
     LazyColumn {
         item {
             SheetTitle(
@@ -81,9 +103,9 @@ private fun LearnHome(viewModel: LearnViewModel, onStartQuiz: () -> Unit) {
             Text("Guided tours", color = StarColors.Ink, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Spacer(Modifier.height(8.dp))
         }
-        items(viewModel.tours.size) { i ->
-            val t = viewModel.tours[i]
-            TourRow(t)
+        items(tours.size) { i ->
+            val t = tours[i]
+            TourRow(t, onClick = { onSelectTour(t) })
             Spacer(Modifier.height(11.dp))
         }
         item {
@@ -101,17 +123,18 @@ private fun LearnHome(viewModel: LearnViewModel, onStartQuiz: () -> Unit) {
 }
 
 @Composable
-private fun TourRow(t: Tour) {
+private fun TourRow(t: Tour, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(StarColors.Card)
             .border(1.dp, StarColors.Line, RoundedCornerShape(16.dp))
-            .clickable(enabled = false) {}
+            .clickable(onClick = onClick)
             .padding(14.dp)
             .semantics(mergeDescendants = true) {
-                contentDescription = "${t.title}, ${t.subtitle}, ${t.progress}% complete"
+                contentDescription = "Open tour ${t.title}, ${t.progress}% complete"
+                role = androidx.compose.ui.semantics.Role.Button
             },
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -155,6 +178,40 @@ private fun BadgeItem(b: Badge) {
         ) { Text(if (b.earned) b.emoji else "\uD83D\uDD12", fontSize = 26.sp) }
         Spacer(Modifier.height(6.dp))
         Text(b.name, color = StarColors.Muted, fontSize = 10.sp, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun TourDetail(tour: Tour, onBack: () -> Unit, onAdvance: () -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            "← Back to tours",
+            color = StarColors.Accent,
+            fontSize = 14.sp,
+            modifier = Modifier.clickable(onClick = onBack).semantics { role = Role.Button; contentDescription = "Back to tours" }.padding(vertical = 4.dp)
+        )
+        Spacer(Modifier.height(10.dp))
+        Text("${tour.emoji} ${tour.title}", color = StarColors.Ink, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(tour.subtitle, color = StarColors.Muted, fontSize = 13.sp)
+        Spacer(Modifier.height(18.dp))
+        tour.objectives.forEachIndexed { i, objective ->
+            val done = i < tour.completed
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(if (done) "✓" else "○", color = if (done) StarColors.Green else StarColors.Muted, fontSize = 18.sp)
+                Spacer(Modifier.width(12.dp))
+                Text(objective, color = if (done) StarColors.Muted else StarColors.Ink, fontSize = 15.sp)
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        val allDone = tour.completed >= tour.objectives.size
+        PrimaryButton(
+            text = if (allDone) "Tour complete" else "Mark objective ${tour.completed + 1} done",
+            enabled = !allDone,
+            onClick = onAdvance,
+        )
     }
 }
 

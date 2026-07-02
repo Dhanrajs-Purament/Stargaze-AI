@@ -19,6 +19,7 @@ import com.stargaze.ai.render.SkyViewState
 import com.stargaze.ai.sensors.DeviceOrientation
 import com.stargaze.ai.sensors.OrientationProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -71,6 +72,7 @@ class SkyViewModel @Inject constructor(
     val snapshot: StateFlow<SkySnapshot> = _snapshot.asStateFlow()
 
     private var sensorJob: Job? = null
+    private var recomputeJob: Job? = null
 
     init {
         // React to persisted display toggles.
@@ -106,23 +108,26 @@ class SkyViewModel @Inject constructor(
     private fun currentEpochMillis(): Long =
         System.currentTimeMillis() + _uiState.value.timeOffsetMinutes * 60_000L
 
-    /** Recompute all celestial positions for the current location + time. Called on a throttle. */
+    /** Recompute all celestial positions for the current location + time. Runs off the main thread. */
     fun recomputeSnapshot() {
-        val loc = _uiState.value.location
-        val now = currentEpochMillis()
-        val stars = skyEngine.stars.map {
-            val h = skyEngine.horizontalOf(it, loc, now)
-            RenderStar(it, h.azimuthDeg, h.altitudeDeg)
+        recomputeJob?.cancel()
+        recomputeJob = viewModelScope.launch(Dispatchers.Default) {
+            val loc = _uiState.value.location
+            val now = currentEpochMillis()
+            val stars = skyEngine.stars.map {
+                val h = skyEngine.horizontalOf(it, loc, now)
+                RenderStar(it, h.azimuthDeg, h.altitudeDeg)
+            }
+            val planets = skyEngine.planets.map {
+                val h = skyEngine.horizontalOf(it, loc, now)
+                RenderPlanet(it, h.azimuthDeg, h.altitudeDeg)
+            }
+            val sats = skyEngine.satellites.map {
+                val h = skyEngine.horizontalOf(it, loc, now)
+                RenderSatellite(it, h.azimuthDeg, h.altitudeDeg)
+            }
+            _snapshot.value = SkySnapshot(stars, planets, sats, skyEngine.constellations, loc)
         }
-        val planets = skyEngine.planets.map {
-            val h = skyEngine.horizontalOf(it, loc, now)
-            RenderPlanet(it, h.azimuthDeg, h.altitudeDeg)
-        }
-        val sats = skyEngine.satellites.map {
-            val h = skyEngine.horizontalOf(it, loc, now)
-            RenderSatellite(it, h.azimuthDeg, h.altitudeDeg)
-        }
-        _snapshot.value = SkySnapshot(stars, planets, sats, skyEngine.constellations, loc)
     }
 
     // ---- View controls ----

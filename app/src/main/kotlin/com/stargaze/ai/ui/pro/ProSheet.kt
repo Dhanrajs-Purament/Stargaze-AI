@@ -1,5 +1,6 @@
 package com.stargaze.ai.ui.pro
 
+import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,13 +23,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.stargaze.ai.billing.ProSku
+import com.stargaze.ai.billing.PurchaseState
 import com.stargaze.ai.ui.components.FeatureCheck
 import com.stargaze.ai.ui.components.SheetTitle
 import com.stargaze.ai.ui.components.ShimmerBorderCard
@@ -36,14 +42,19 @@ import com.stargaze.ai.ui.components.SkySheet
 import com.stargaze.ai.ui.onboarding.PrimaryButton
 import com.stargaze.ai.ui.theme.StarColors
 
-private data class Plan(
-    val name: String,
-    val desc: String,
-    val price: String,
-    val per: String,
+private data class PlanUi(
+    val productId: String,
+    val displayName: String,
+    val description: String,
     val best: Boolean,
-    val save: String? = null,
+    val saveLabel: String? = null,
 )
+
+private fun planUiFor(productId: String): PlanUi = when (productId) {
+    ProViewModel.PRO_PRODUCT_IDS[0] -> PlanUi(productId, "Annual", "Billed yearly \u00B7 7-day free trial", best = true, saveLabel = "SAVE 58%")
+    ProViewModel.PRO_PRODUCT_IDS[1] -> PlanUi(productId, "Monthly", "Cancel anytime", best = false)
+    else -> PlanUi(productId, "Lifetime", "Pay once, yours forever", best = false)
+}
 
 @Composable
 fun ProSheet(
@@ -53,12 +64,12 @@ fun ProSheet(
     viewModel: ProViewModel = hiltViewModel(),
 ) {
     val isPro by viewModel.isPro.collectAsState()
+    val products by viewModel.products.collectAsState()
+    val purchaseState by viewModel.purchaseState.collectAsState()
+    val activity = LocalContext.current as? Activity
 
-    val plans = listOf(
-        Plan("Annual", "Billed yearly \u00B7 7-day free trial", "$24.99", "\u20B9599 / year", best = true, save = "SAVE 58%"),
-        Plan("Monthly", "Cancel anytime", "$3.99", "\u20B9149 / mo", best = false),
-        Plan("Lifetime", "Pay once, yours forever", "$44.99", "\u20B91,799 once", best = false),
-    )
+    val sortedProducts = rememberProductsOrder(products)
+
     val features = listOf(
         "Unlimited AI Sky Guide questions & voice mode",
         "Full Gaia catalog - 1.7 billion stars",
@@ -71,17 +82,17 @@ fun ProSheet(
     SkySheet(onDismiss = onDismiss, maxHeightFraction = 0.9f) {
         LazyColumn {
             item {
+                SheetTitle("StarGaze Pro")
                 Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("\uD83D\uDC51", fontSize = 48.sp)
                     Text(
-                        if (isPro) "You're Pro" else "StarGaze Pro",
+                        if (isPro) "You're Pro \u2713" else "Unlock the whole universe",
                         color = StarColors.Ink,
-                        fontSize = 26.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 8.dp),
+                        textAlign = TextAlign.Center,
                     )
                     Text(
-                        if (isPro) "Thanks for supporting StarGaze" else "Unlock the whole universe",
+                        if (isPro) "Thanks for supporting StarGaze" else "Choose a plan that works for you",
                         color = StarColors.Muted,
                         fontSize = 13.sp,
                     )
@@ -90,34 +101,63 @@ fun ProSheet(
             }
             if (!isPro) {
                 item {
-                    plans.forEach { plan ->
-                        PlanCard(plan)
-                        Spacer(Modifier.height(11.dp))
+                    if (sortedProducts.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(17.dp))
+                                .background(StarColors.Card)
+                                .border(1.dp, StarColors.Line, RoundedCornerShape(17.dp))
+                                .padding(18.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                "Loading plans from Google Play\u2026",
+                                color = StarColors.Muted,
+                                fontSize = 14.sp,
+                            )
+                        }
+                    } else {
+                        sortedProducts.forEach { sku ->
+                            PlanCard(
+                                sku = sku,
+                                onClick = { activity?.let { viewModel.purchase(it, sku.productId) } },
+                            )
+                            Spacer(Modifier.height(11.dp))
+                        }
                     }
+                    Spacer(Modifier.height(6.dp))
                 }
             }
             item {
-                Spacer(Modifier.height(6.dp))
                 features.forEach { f ->
                     FeatureCheck(f, modifier = Modifier.padding(vertical = 7.dp))
                 }
                 Spacer(Modifier.height(10.dp))
                 if (!isPro) {
-                    PrimaryButton("Start 7-day free trial", modifier = Modifier.fillMaxWidth(), onClick = viewModel::activatePro)
-                }
-                Spacer(Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(13.dp))
-                        .background(StarColors.Accent.copy(alpha = 0.1f))
-                        .border(1.dp, StarColors.Accent.copy(alpha = 0.25f), RoundedCornerShape(13.dp))
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("\u2708\uFE0F", fontSize = 18.sp)
-                    Spacer(Modifier.width(10.dp))
-                    Text("On Telegram, unlock Pro instantly with Telegram Stars - no app store needed.", color = Color(0xFFCDD6FF), fontSize = 13.sp)
+                    when (purchaseState) {
+                        is PurchaseState.Error -> Text(
+                            (purchaseState as PurchaseState.Error).message,
+                            color = StarColors.Red,
+                            fontSize = 13.sp,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                        )
+                        PurchaseState.Loading -> Text(
+                            "Contacting Google Play\u2026",
+                            color = StarColors.Muted,
+                            fontSize = 13.sp,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                        )
+                        else -> {}
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    PrimaryButton(
+                        "Restore purchases",
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = viewModel::restorePurchases,
+                    )
                 }
                 Spacer(Modifier.height(14.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -125,7 +165,13 @@ fun ProSheet(
                     FooterLink("Legal & Privacy", Modifier.weight(1f), onOpenLegal)
                 }
                 Spacer(Modifier.height(12.dp))
-                Text("Prototype - no real charge. Restore \u00B7 Terms \u00B7 Privacy", color = StarColors.Faint, fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Text(
+                    "Subscriptions auto-renew until cancelled. Restore \u00B7 Terms \u00B7 Privacy",
+                    color = StarColors.Faint,
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Spacer(Modifier.height(20.dp))
             }
         }
@@ -133,7 +179,16 @@ fun ProSheet(
 }
 
 @Composable
-private fun PlanCard(plan: Plan) {
+private fun rememberProductsOrder(products: List<ProSku>): List<ProSku> {
+    return androidx.compose.runtime.remember(products) {
+        val order = ProViewModel.PRO_PRODUCT_IDS.withIndex().associate { it.value to it.index }
+        products.sortedBy { order[it.productId] ?: Int.MAX_VALUE }
+    }
+}
+
+@Composable
+private fun PlanCard(sku: ProSku, onClick: () -> Unit) {
+    val meta = planUiFor(sku.productId)
     val content = @Composable {
         Row(
             modifier = Modifier
@@ -143,8 +198,8 @@ private fun PlanCard(plan: Plan) {
         ) {
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(plan.name, color = StarColors.Ink, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    plan.save?.let {
+                    Text(meta.displayName, color = StarColors.Ink, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    meta.saveLabel?.let {
                         Spacer(Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
@@ -156,32 +211,36 @@ private fun PlanCard(plan: Plan) {
                         }
                     }
                 }
-                Text(plan.desc, color = StarColors.Muted, fontSize = 12.sp)
+                Text(meta.description, color = StarColors.Muted, fontSize = 12.sp)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text(plan.price, color = StarColors.Ink, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
-                Text(plan.per, color = StarColors.Muted, fontSize = 12.sp)
+                Text(sku.formattedPrice, color = StarColors.Ink, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
             }
         }
     }
 
-    if (plan.best) {
+    val semanticsModifier = Modifier
+        .fillMaxWidth()
+        .semantics(mergeDescendants = true) {
+            role = Role.Button
+            contentDescription = "${meta.displayName} plan, ${sku.formattedPrice}"
+        }
+
+    if (meta.best) {
         ShimmerBorderCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { contentDescription = "${plan.name} plan, best value" },
+            modifier = semanticsModifier
+                .clickable(onClick = onClick),
             cornerRadius = 17.dp,
         ) {
             content()
         }
     } else {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
+            modifier = semanticsModifier
                 .clip(RoundedCornerShape(17.dp))
                 .background(StarColors.Card)
                 .border(1.dp, StarColors.Line, RoundedCornerShape(17.dp))
-                .semantics { contentDescription = "${plan.name} plan" },
+                .clickable(onClick = onClick),
         ) {
             content()
         }
@@ -196,6 +255,10 @@ private fun FooterLink(text: String, modifier: Modifier = Modifier, onClick: () 
             .background(StarColors.Card)
             .border(1.dp, StarColors.Line, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+                contentDescription = text
+            }
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) { Text(text, color = StarColors.Accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }

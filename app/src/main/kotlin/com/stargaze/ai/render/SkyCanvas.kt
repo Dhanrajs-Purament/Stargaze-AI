@@ -14,8 +14,9 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import com.stargaze.ai.astronomy.Angles
 import com.stargaze.ai.astronomy.Body
 import com.stargaze.ai.astronomy.SkyObject
@@ -49,8 +50,11 @@ fun SkyCanvas(
     modifier: Modifier = Modifier,
 ) {
     val textMeasurer = rememberTextMeasurer()
-    // Hit targets are rebuilt each frame; kept in a holder the tap handler can read.
-    val hitTargets = remember { mutableStateOf<List<HitTarget>>(emptyList()) }
+    // Snapshot/viewState are read fresh on each tap instead of being written during draw.
+    val currentSnapshot by rememberUpdatedState(snapshot)
+    val currentViewState by rememberUpdatedState(viewState)
+    val currentFrameTimeMs by rememberUpdatedState(frameTimeMs)
+    val currentSelected by rememberUpdatedState(selected)
     val tint = if (viewState.nightMode) StarColors.NightRed else null
 
     Canvas(
@@ -67,7 +71,14 @@ fun SkyCanvas(
             }
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
-                    val hit = hitTargets.value
+                    val targets = buildHitTargets(
+                        snapshot = currentSnapshot,
+                        viewState = currentViewState,
+                        frameTimeMs = currentFrameTimeMs,
+                        width = size.width.toFloat(),
+                        height = size.height.toFloat(),
+                    )
+                    val hit = targets
                         .filter { hypot((it.x - offset.x).toDouble(), (it.y - offset.y).toDouble()) < it.radius }
                         .minByOrNull { hypot((it.x - offset.x).toDouble(), (it.y - offset.y).toDouble()) }
                     if (hit != null) onTapObject(hit.obj) else onTapEmpty()
@@ -91,9 +102,9 @@ fun SkyCanvas(
         if (viewState.showSatellites) drawSatellites(projection, snapshot, frameTimeMs, tint, targets, textMeasurer, viewState.showLabels)
         drawCompass(projection)
         drawGroundGlow()
-        if (selected != null) drawReticle(projection, snapshot, selected, frameTimeMs)
+        currentSelected?.let { drawReticle(projection, snapshot, it, frameTimeMs) }
 
-        hitTargets.value = targets
+        // local targets list is used only to avoid repeated Allocation during this draw pass.
     }
 }
 
@@ -263,4 +274,46 @@ private fun DrawScope.drawReticle(p: SkyProjection, snap: SkySnapshot, selected:
             strokeWidth = 1.6f,
         )
     }
+}
+
+/** Builds tap hit targets deterministically from the current snapshot, outside of draw. */
+private fun buildHitTargets(
+    snapshot: SkySnapshot,
+    viewState: SkyViewState,
+    frameTimeMs: Long,
+    width: Float,
+    height: Float,
+): List<HitTarget> {
+    val projection = SkyProjection(
+        viewWidthPx = width,
+        viewHeightPx = height,
+        centerAzimuthDeg = viewState.centerAzimuthDeg,
+        centerAltitudeDeg = viewState.centerAltitudeDeg,
+        fieldOfViewDeg = viewState.fieldOfViewDeg,
+    )
+    val targets = mutableListOf<HitTarget>()
+
+    for (rs in snapshot.stars) {
+        if (rs.altitudeDeg < -2) continue
+        val pt = projection.project(rs.azimuthDeg, rs.altitudeDeg) ?: continue
+        val tw = 0.8 + 0.2 * sin(frameTimeMs / 600.0 + rs.star.rightAscensionDeg)
+        val r = magToRadius(rs.star.magnitude) * tw.toFloat()
+        targets += HitTarget(pt.x, pt.y, r + 15f, SkyObject.StarObject(rs.star))
+    }
+    for (rp in snapshot.planets) {
+        if (rp.altitudeDeg < -2) continue
+        val pt = projection.project(rp.azimuthDeg, rp.altitudeDeg) ?: continue
+        val radius = when (rp.planet.body) {
+            Body.SUN -> 15f; Body.MOON -> 13f; Body.JUPITER -> 7.5f; Body.VENUS -> 6.5f; else -> 5.5f
+        }
+        targets += HitTarget(pt.x, pt.y, radius + 16f, SkyObject.PlanetObject(rp.planet))
+    }
+    if (viewState.showSatellites) {
+        for (rsat in snapshot.satellites) {
+            if (rsat.altitudeDeg < 0) continue
+            val pt = projection.project(rsat.azimuthDeg, rsat.altitudeDeg) ?: continue
+            targets += HitTarget(pt.x, pt.y, 14f, SkyObject.SatelliteObject(rsat.satellite))
+        }
+    }
+    return targets
 }

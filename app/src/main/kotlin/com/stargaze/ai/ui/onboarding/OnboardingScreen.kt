@@ -42,6 +42,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -325,16 +329,30 @@ private fun FeatureRow(f: Feature) {
 }
 
 @Composable
-fun PrimaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun PrimaryButton(
+    text: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val bgModifier = if (enabled) {
+        Modifier.background(StarColors.BrandGradient)
+    } else {
+        Modifier.background(StarColors.Line)
+    }
     Box(
         modifier = modifier
+            .then(bgModifier)
             .clip(RoundedCornerShape(16.dp))
-            .background(StarColors.BrandGradient)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 30.dp, vertical = 16.dp),
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 30.dp, vertical = 16.dp)
+            .semantics {
+                role = Role.Button
+                contentDescription = text
+            },
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = Color(0xFF0A0C1A), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text(text, color = if (enabled) Color(0xFF0A0C1A) else StarColors.Muted, fontWeight = FontWeight.Bold, fontSize = 16.sp)
     }
 }
 

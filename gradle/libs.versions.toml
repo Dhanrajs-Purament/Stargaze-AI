@@ -20,6 +20,7 @@ androidxDataStore = "1.1.1"
 androidxSecurityCrypto = "1.1.0-alpha06"
 androidxHiltNavigationCompose = "1.2.0"
 playServicesLocation = "21.3.0"
+playBilling = "6.2.1"
 
 # DI
 hilt = "2.51.1"
@@ -77,6 +78,7 @@ androidx-security-crypto = { group = "androidx.security", name = "security-crypt
 
 # Location
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+play-billing = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "playBilling" }
 
 # Hilt
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }

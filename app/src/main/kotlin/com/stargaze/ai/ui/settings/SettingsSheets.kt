@@ -24,6 +24,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -136,7 +140,15 @@ private fun ModelCard(
     onSelect: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth().clickable(enabled = option.downloaded, onClick = onSelect)) {
+    GlassCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = option.downloaded, onClick = onSelect)
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+                contentDescription = "${option.label}, ${if (option.selected && option.downloaded) "selected" else "not selected"}"
+            },
+    ) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -187,7 +199,11 @@ private fun ModelCard(
 
 @Composable
 private fun ToggleCard(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+    val stateLabel = if (checked) "On" else "Off"
+    GlassCard(modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {
+        role = Role.Switch
+        contentDescription = "$title, $stateLabel"
+    }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(title, color = StarColors.Ink, fontWeight = FontWeight.Bold, fontSize = 15.sp)
@@ -207,6 +223,10 @@ private fun ActionButton(text: String, modifier: Modifier = Modifier, outlined: 
             .background(if (outlined) StarColors.Card else StarColors.Accent.copy(alpha = 0.16f))
             .border(1.dp, if (outlined) StarColors.Line else StarColors.Accent.copy(alpha = 0.5f), RoundedCornerShape(13.dp))
             .clickable(onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+                contentDescription = text
+            }
             .padding(vertical = 13.dp),
         contentAlignment = Alignment.Center,
     ) { Text(text, color = if (outlined) StarColors.Muted else StarColors.Ink, fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp) }

@@ -45,8 +45,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -240,6 +244,8 @@ private fun IconChip(
                 interactionSource = interactionSource,
                 indication = null,
                 enabled = enabled,
+                role = Role.Button,
+                onClickLabel = contentDescription,
                 onClick = onClick,
             )
             .semantics { this.contentDescription = contentDescription },
@@ -295,6 +301,8 @@ private fun ToolButton(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
+                role = Role.Button,
+                onClickLabel = contentDescription,
                 onClick = onClick,
             )
             .semantics(mergeDescendants = true) { this.contentDescription = contentDescription }
@@ -344,7 +352,12 @@ private fun TimeBar(offsetMinutes: Int, onOffsetChange: (Int) -> Unit, onReset: 
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .background(StarColors.Green.copy(alpha = 0.14f))
-                    .clickable { onReset() }
+                    .clickable(
+                        onClickLabel = "Reset time to live",
+                        role = Role.Button,
+                        onClick = onReset,
+                    )
+                    .semantics { contentDescription = "Reset time to live" }
                     .padding(horizontal = 10.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

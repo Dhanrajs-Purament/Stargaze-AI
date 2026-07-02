@@ -20,6 +20,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,7 +73,10 @@ fun AiConsentDialog(
             Text(
                 "Read our Privacy Policy",
                 color = StarColors.Accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.clickable(onClick = onOpenPrivacy).padding(vertical = 4.dp),
+                modifier = Modifier
+                    .clickable(onClick = onOpenPrivacy)
+                    .semantics { role = Role.Button; contentDescription = "Read privacy policy" }
+                    .padding(vertical = 4.dp),
             )
             Spacer(Modifier.height(16.dp))
             PrimaryButton("Keep it private (recommended)", modifier = Modifier.fillMaxWidth()) { onChoice(false) }
@@ -81,6 +88,10 @@ fun AiConsentDialog(
                     .background(StarColors.Card)
                     .border(1.dp, StarColors.Line, RoundedCornerShape(16.dp))
                     .clickable { onChoice(true) }
+                    .semantics(mergeDescendants = true) {
+                        role = Role.Button
+                        contentDescription = "Allow cloud AI"
+                    }
                     .padding(vertical = 15.dp),
                 contentAlignment = Alignment.Center,
             ) { Text("Allow cloud AI", color = StarColors.Ink, fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
