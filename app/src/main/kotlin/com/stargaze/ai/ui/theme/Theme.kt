@@ -5,9 +5,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.sp
 
 private val OnAccentInk = Color(0xFF0A0C1A)
@@ -127,14 +130,30 @@ private val HighContrastColorScheme = darkColorScheme(
 )
 
 @Composable
-fun StarGazeTheme(highContrast: Boolean = false, content: @Composable () -> Unit) {
+fun StarGazeTheme(
+    highContrast: Boolean = false,
+    textScale: Float = 1.0f,
+    content: @Composable () -> Unit,
+) {
     // The app is intentionally always dark (it is a stargazing tool); we reference the system
     // setting so a future light-mode has a hook, but always apply the dark scheme.
     @Suppress("UNUSED_VARIABLE")
     val systemDark = isSystemInDarkTheme()
-    MaterialTheme(
-        colorScheme = if (highContrast) HighContrastColorScheme else StarGazeColorScheme,
-        typography = StarGazeTypography,
-        content = content,
+
+    // Override the CompositionLocal density so all sp-based text scales by the user's preference.
+    // This is the idiomatic Compose approach for app-controlled text size: it affects every Text
+    // composable without touching the system font scale, giving predictable layout in a dense app.
+    val baseDensity = LocalDensity.current
+    val scaledDensity = Density(
+        density = baseDensity.density,
+        fontScale = baseDensity.fontScale * textScale,
     )
+
+    CompositionLocalProvider(LocalDensity provides scaledDensity) {
+        MaterialTheme(
+            colorScheme = if (highContrast) HighContrastColorScheme else StarGazeColorScheme,
+            typography = StarGazeTypography,
+            content = content,
+        )
+    }
 }

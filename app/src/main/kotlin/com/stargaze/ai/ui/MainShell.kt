@@ -30,6 +30,8 @@ import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.stargaze.ai.render.SkyCanvas
@@ -96,6 +98,8 @@ fun MainShell(
         overlay = Overlay.IDENTIFY
     }
 
+    val haptics = LocalHapticFeedback.current
+
     Box(modifier = Modifier.fillMaxSize()) {
         SkyCanvas(
             snapshot = snapshot,
@@ -104,8 +108,14 @@ fun MainShell(
             selected = uiState.selected,
             onPan = skyViewModel::pan,
             onZoom = skyViewModel::zoom,
-            onTapObject = skyViewModel::select,
-            onTapEmpty = { skyViewModel.select(null) },
+            onTapObject = { obj ->
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                skyViewModel.select(obj)
+            },
+            onTapEmpty = {
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                skyViewModel.select(null)
+            },
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -118,7 +128,10 @@ fun MainShell(
 
         // Primary identify action floating above the bottom nav.
         FloatingActionButton(
-            onClick = openIdentify,
+            onClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                openIdentify()
+            },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()

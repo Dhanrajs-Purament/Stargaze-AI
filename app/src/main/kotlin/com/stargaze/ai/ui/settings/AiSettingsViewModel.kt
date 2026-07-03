@@ -30,6 +30,7 @@ data class AiSettingsUiState(
     val cloudAiConsent: Boolean = false,
     val onDeviceAiEnabled: Boolean = false,
     val highContrast: Boolean = false,
+    val textScale: Float = 1.0f,
     val onDeviceSupported: Boolean = false,
     val totalRamMb: Long = 0,
     val models: List<ModelOption> = emptyList(),
@@ -53,6 +54,7 @@ class AiSettingsViewModel @Inject constructor(
                 cloudAiConsent = settings.cloudAiConsent,
                 onDeviceAiEnabled = settings.onDeviceAiEnabled,
                 highContrast = settings.highContrast,
+                textScale = settings.textScale,
                 onDeviceSupported = onDeviceAi.isSupported,
                 totalRamMb = onDeviceAi.totalRamMb,
                 models = onDeviceAi.availableModels.map { it.toOption(selectedId) },
@@ -86,6 +88,10 @@ class AiSettingsViewModel @Inject constructor(
 
     fun setHighContrast(enabled: Boolean) = viewModelScope.launch {
         settingsRepository.setHighContrast(enabled)
+    }
+
+    fun setTextScale(scale: Float) = viewModelScope.launch {
+        settingsRepository.setTextScale(scale)
     }
 
     fun selectModel(id: String) {

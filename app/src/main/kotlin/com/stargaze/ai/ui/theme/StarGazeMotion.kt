@@ -27,6 +27,8 @@ object StarGazeMotion {
     const val DURATION_SLOWER = 800
     const val DURATION_ENTRANCE = 600
     const val DURATION_STAGGER_STEP = 80
+    /** Duration of the constellation line-draw reveal animation (ms). */
+    const val DURATION_CONSTELLATION_DRAW = 1200
 
     /* ── Specs ── */
     val TweenFast = tween<Float>(DURATION_FAST, easing = FastOutSlowInEasing)

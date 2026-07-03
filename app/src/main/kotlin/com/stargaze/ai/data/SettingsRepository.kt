@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -34,6 +35,8 @@ data class UserSettings(
     val onDeviceAiEnabled: Boolean = false,
     /** The id of the on-device model the user selected from the catalog (empty = default). */
     val selectedModelId: String = "",
+    /** UI text scale factor: 0.85 = small, 1.0 = default, 1.15 = medium, 1.3 = large. */
+    val textScale: Float = 1.0f,
 )
 
 @Singleton
@@ -54,6 +57,7 @@ class SettingsRepository @Inject constructor(
         val CLOUD_AI_CONSENT = booleanPreferencesKey("cloud_ai_consent")
         val ON_DEVICE_AI = booleanPreferencesKey("on_device_ai_enabled")
         val SELECTED_MODEL = stringPreferencesKey("selected_model_id")
+        val TEXT_SCALE = floatPreferencesKey("text_scale")
     }
 
     val settings: Flow<UserSettings> = context.dataStore.data.map { prefs ->
@@ -72,6 +76,7 @@ class SettingsRepository @Inject constructor(
             cloudAiConsent = prefs[Keys.CLOUD_AI_CONSENT] ?: false,
             onDeviceAiEnabled = prefs[Keys.ON_DEVICE_AI] ?: false,
             selectedModelId = prefs[Keys.SELECTED_MODEL] ?: "",
+            textScale = prefs[Keys.TEXT_SCALE] ?: 1.0f,
         )
     }
 
@@ -107,6 +112,9 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setSelectedModelId(id: String) =
         context.dataStore.edit { it[Keys.SELECTED_MODEL] = id }
+
+    suspend fun setTextScale(scale: Float) =
+        context.dataStore.edit { it[Keys.TEXT_SCALE] = scale.coerceIn(0.85f, 1.3f) }
 
     /** Atomically increments today's AI question counter, resetting if the day rolled over. */
     suspend fun incrementAiUsage() = context.dataStore.edit { prefs ->

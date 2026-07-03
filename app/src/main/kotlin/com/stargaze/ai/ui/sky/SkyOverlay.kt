@@ -45,6 +45,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -83,6 +85,13 @@ fun SkyOverlay(
 ) {
     var showTimeBar by remember { mutableStateOf(false) }
     val vs = uiState.viewState
+    val haptics = LocalHapticFeedback.current
+    val tap: (() -> Unit) -> () -> Unit = { action ->
+        {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            action()
+        }
+    }
 
     Box(modifier = modifier) {
         // ---- Top bar ----
@@ -115,21 +124,21 @@ fun SkyOverlay(
                 contentDescription = if (vs.arMode) "AR mode on" else "AR mode off",
                 active = vs.arMode,
                 enabled = uiState.sensorAvailable,
-                onClick = { viewModel.toggleAr() },
+                onClick = tap { viewModel.toggleAr() },
             )
             Spacer(Modifier.width(8.dp))
             IconChip(
                 icon = Icons.Filled.CenterFocusStrong,
                 contentDescription = "Identify objects in the sky",
                 active = false,
-                onClick = onIdentifySky,
+                onClick = tap { onIdentifySky() },
             )
             Spacer(Modifier.width(8.dp))
             IconChip(
                 icon = Icons.Filled.Nightlight,
                 contentDescription = if (vs.nightMode) "Night mode on" else "Night mode off",
                 active = vs.nightMode,
-                onClick = { viewModel.toggleNightMode() },
+                onClick = tap { viewModel.toggleNightMode() },
             )
         }
 
@@ -145,31 +154,31 @@ fun SkyOverlay(
                 label = "LINES",
                 active = vs.showConstellationLines,
                 contentDescription = "Toggle constellation lines",
-            ) { viewModel.toggleLines() }
+            ) { tap { viewModel.toggleLines() }() }
             ToolButton(
                 icon = Icons.AutoMirrored.Filled.Label,
                 label = "LABELS",
                 active = vs.showLabels,
                 contentDescription = "Toggle labels",
-            ) { viewModel.toggleLabels() }
+            ) { tap { viewModel.toggleLabels() }() }
             ToolButton(
                 icon = Icons.Filled.SatelliteAlt,
                 label = "SATS",
                 active = vs.showSatellites,
                 contentDescription = "Toggle satellites",
-            ) { viewModel.toggleSatellites() }
+            ) { tap { viewModel.toggleSatellites() }() }
             ToolButton(
                 icon = Icons.Filled.Schedule,
                 label = "TIME",
                 active = showTimeBar,
                 contentDescription = "Toggle time travel bar",
-            ) { showTimeBar = !showTimeBar }
+            ) { tap { showTimeBar = !showTimeBar }() }
             ToolButton(
                 icon = Icons.Filled.MyLocation,
                 label = "RESET",
                 active = false,
                 contentDescription = "Recenter the sky",
-            ) { viewModel.recenter() }
+            ) { tap { viewModel.recenter() }() }
         }
 
         // ---- HUD pills + time bar bottom-center ----

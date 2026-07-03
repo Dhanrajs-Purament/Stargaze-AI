@@ -28,7 +28,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val settings by settingsRepository.settings.collectAsState(initial = UserSettings())
-            StarGazeTheme(highContrast = settings.highContrast) {
+            StarGazeTheme(
+                highContrast = settings.highContrast,
+                textScale = settings.textScale,
+            ) {
                 Surface(modifier = Modifier.fillMaxSize(), color = StarColors.Bg) {
                     StarGazeRoot()
                 }

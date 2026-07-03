@@ -15,11 +15,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +41,7 @@ import com.stargaze.ai.ui.components.GlassCard
 import com.stargaze.ai.ui.components.SkySheet
 import com.stargaze.ai.ui.components.StatusPill
 import com.stargaze.ai.ui.theme.StarColors
+import kotlin.math.roundToInt
 
 /** In-app legal/privacy reader. */
 @Composable
@@ -88,6 +93,11 @@ fun AiSettingsSheet(onDismiss: () -> Unit, viewModel: AiSettingsViewModel = hilt
                     else "Off — default dark-space styling.",
                     checked = s.highContrast,
                     onCheckedChange = viewModel::setHighContrast,
+                )
+                Spacer(Modifier.height(16.dp))
+                TextScaleCard(
+                    textScale = s.textScale,
+                    onScaleChange = viewModel::setTextScale,
                 )
                 Spacer(Modifier.height(16.dp))
             }
@@ -211,6 +221,54 @@ private fun ToggleCard(title: String, subtitle: String, checked: Boolean, onChec
             }
             Spacer(Modifier.width(12.dp))
             Switch(checked = checked, onCheckedChange = onCheckedChange)
+        }
+    }
+}
+
+/** Discrete label for a text scale value. */
+private fun textScaleLabel(scale: Float): String = when {
+    scale < 0.92f -> "Small"
+    scale < 1.08f -> "Default"
+    scale < 1.22f -> "Medium"
+    else -> "Large"
+}
+
+@Composable
+private fun TextScaleCard(textScale: Float, onScaleChange: (Float) -> Unit) {
+    // Local state tracks the slider position during drag; DataStore is only written when the
+    // user releases the slider (onValueChangeFinished) to avoid a coroutine + disk write per step.
+    var sliderValue by remember(textScale) { mutableStateOf(textScale) }
+    val pct = (sliderValue * 100).roundToInt()
+    GlassCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {
+                contentDescription = "Text size, ${textScaleLabel(sliderValue)}, $pct percent"
+            },
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Text size", color = StarColors.Ink, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text(
+                        "Scale all text in the app for readability. ${textScaleLabel(sliderValue)} ($pct%).",
+                        color = StarColors.Muted, fontSize = 13.sp, lineHeight = 18.sp,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Slider(
+                value = sliderValue,
+                onValueChange = { sliderValue = it },
+                onValueChangeFinished = { onScaleChange(sliderValue) },
+                valueRange = 0.85f..1.3f,
+                steps = 8,
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("A", color = StarColors.Faint, fontSize = 11.sp)
+                Text("A", color = StarColors.Faint, fontSize = 16.sp)
+            }
         }
     }
 }

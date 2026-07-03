@@ -1,10 +1,20 @@
 package com.stargaze.ai.render
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -13,26 +23,25 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import com.stargaze.ai.astronomy.Angles
 import com.stargaze.ai.astronomy.Body
 import com.stargaze.ai.astronomy.SkyObject
 import com.stargaze.ai.ui.theme.StarColors
+import com.stargaze.ai.ui.theme.StarGazeMotion
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.sin
+import kotlin.random.Random
 
 /**
  * The interactive AR sky map.
  *
- * Draws (in order): background gradient, twinkling faint-star field, constellation lines + name
- * badges, catalogued stars, planets (with Saturn's ring and the Moon's terminator), satellites with
- * motion trails, the compass cardinals, a ground glow, and a selection reticle. Supports drag-to-pan
- * and pinch-to-zoom; taps are hit-tested against rendered objects.
+ * Draws (in order): background gradient, Milky Way band, twinkling faint-star field, constellation
+ * lines + name badges, catalogued stars, planets (with Saturn's ring and the Moon's terminator),
+ * satellites with motion trails, shooting stars (meteors), the compass cardinals, a ground glow,
+ * and a selection reticle. Supports drag-to-pan and pinch-to-zoom; taps are hit-tested against
+ * rendered objects.
  *
  * @param frameTimeMs a monotonically increasing time used for twinkle/animation, driven by the
  *   host's frame loop so the canvas animates smoothly.
@@ -57,14 +66,42 @@ fun SkyCanvas(
     val currentSelected by rememberUpdatedState(selected)
     val tint = if (viewState.nightMode) StarColors.NightRed else null
 
+    // Shooting-star manager: spawns meteors at random intervals, each with a curved trajectory
+    // and a fading particle trail. Lifetime is frame-driven for smooth animation.
+    val meteorManager = remember { MeteorManager() }
+
+    // Constellation line-draw animation: progress 0→1 when lines are toggled on or a different
+    // constellation is selected. Resets when lines are toggled off.
+    // Keying on the selected constellation NAME (not the full selected object) prevents the
+    // animation from replaying every time the user taps a star or planet.
+    val constellationAnimProgress = remember { Animatable(0f) }
+    val linesVisible = viewState.showConstellationLines
+    val selectedConstellationName = (selected as? SkyObject.ConstellationObject)?.constellation?.name
+    LaunchedEffect(linesVisible, selectedConstellationName) {
+        if (linesVisible) {
+            constellationAnimProgress.snapTo(0f)
+            constellationAnimProgress.animateTo(
+                1f,
+                animationSpec = tween(
+                    StarGazeMotion.DURATION_CONSTELLATION_DRAW,
+                    easing = FastOutSlowInEasing,
+                ),
+            )
+        } else {
+            constellationAnimProgress.snapTo(0f)
+        }
+    }
+
     Canvas(
         modifier = modifier
             .pointerInput(Unit) {
                 detectTransformGestures { _, pan, zoom, _ ->
                     if (zoom != 1f) onZoom(zoom)
                     if (pan != Offset.Zero) {
-                        // Convert pixel drag to angular pan, scaled by FOV (matches prototype feel).
-                        val fov = viewState.fieldOfViewDeg
+                        // Convert pixel drag to angular pan, scaled by current FOV.
+                        // Uses currentViewState (rememberUpdatedState) so zoom changes take effect
+                        // immediately rather than using a stale initial FOV.
+                        val fov = currentViewState.fieldOfViewDeg
                         onPan(-pan.x * fov / size.height, pan.y * fov / size.height)
                     }
                 }
@@ -92,19 +129,24 @@ fun SkyCanvas(
             centerAltitudeDeg = viewState.centerAltitudeDeg,
             fieldOfViewDeg = viewState.fieldOfViewDeg,
         )
-        val targets = mutableListOf<HitTarget>()
+
+        // Update meteor manager inside the draw phase where canvas dimensions are available,
+        // avoiding both a composition-side-effect and hardcoded spawn dimensions.
+        meteorManager.update(frameTimeMs, viewState.nightMode, size.width, size.height)
 
         drawBackground(viewState.nightMode)
+        drawMilkyWay(projection, frameTimeMs, tint)
         drawTwinkleField(projection, frameTimeMs, tint)
-        if (viewState.showConstellationLines) drawConstellations(projection, snapshot, tint)
-        drawStars(projection, snapshot, frameTimeMs, tint, targets, textMeasurer, viewState.showLabels)
-        drawPlanets(projection, snapshot, tint, targets, textMeasurer, viewState.showLabels)
-        if (viewState.showSatellites) drawSatellites(projection, snapshot, frameTimeMs, tint, targets, textMeasurer, viewState.showLabels)
+        if (viewState.showConstellationLines) {
+            drawConstellations(projection, snapshot, tint, constellationAnimProgress.value, selected)
+        }
+        drawStars(projection, snapshot, frameTimeMs, tint, textMeasurer, viewState.showLabels)
+        drawPlanets(projection, snapshot, tint, textMeasurer, viewState.showLabels)
+        if (viewState.showSatellites) drawSatellites(projection, snapshot, frameTimeMs, tint, textMeasurer, viewState.showLabels)
+        drawShootingStars(meteorManager, frameTimeMs, tint)
         drawCompass(projection)
         drawGroundGlow()
         currentSelected?.let { drawReticle(projection, snapshot, it, frameTimeMs) }
-
-        // local targets list is used only to avoid repeated Allocation during this draw pass.
     }
 }
 
@@ -114,7 +156,7 @@ private fun DrawScope.drawBackground(nightMode: Boolean) {
     } else {
         listOf(Color(0xFF101A40), Color(0xFF0A0E22), Color(0xFF04050D))
     }
-    drawRect(brush = androidx.compose.ui.graphics.Brush.verticalGradient(colors), size = size)
+    drawRect(brush = Brush.verticalGradient(colors), size = size)
 }
 
 // Deterministic faint background star field (seeded), twinkling over time.
@@ -136,21 +178,65 @@ private fun DrawScope.drawTwinkleField(p: SkyProjection, t: Long, tint: Color?) 
     }
 }
 
-private fun DrawScope.drawConstellations(p: SkyProjection, snap: SkySnapshot, tint: Color?) {
+private fun DrawScope.drawConstellations(
+    p: SkyProjection,
+    snap: SkySnapshot,
+    tint: Color?,
+    animProgress: Float,
+    selected: SkyObject?,
+) {
     val lineColor = tint ?: StarColors.Accent
+    // Build an O(1) lookup map once per frame instead of O(n) firstOrNull for every line endpoint.
+    val starMap: Map<String, RenderStar> = snap.stars.associateBy { it.star.name }
     for (c in snap.constellations) {
-        for ((aName, bName) in c.lines) {
-            val a = snap.stars.firstOrNull { it.star.name == aName } ?: continue
-            val b = snap.stars.firstOrNull { it.star.name == bName } ?: continue
+        val isSelected = selected is SkyObject.ConstellationObject && selected.constellation.name == c.name
+        val lineCount = c.lines.size
+        val staggerPerLine = 1f / max(lineCount, 1)
+        for ((idx, pair) in c.lines.withIndex()) {
+            val (aName, bName) = pair
+            val a = starMap[aName] ?: continue
+            val b = starMap[bName] ?: continue
             if (a.altitudeDeg < -3 || b.altitudeDeg < -3) continue
             val pa = p.project(a.azimuthDeg, a.altitudeDeg) ?: continue
             val pb = p.project(b.azimuthDeg, b.altitudeDeg) ?: continue
+
+            // Each line draws progressively within its stagger window:
+            // line idx starts at idx*stagger and completes at (idx+1)*stagger of the total animation.
+            val lineStartTime = idx * staggerPerLine
+            val lineEndTime = (idx + 1) * staggerPerLine
+            val segmentProgress = if (lineEndTime <= lineStartTime) {
+                if (animProgress >= lineStartTime) 1f else 0f
+            } else {
+                ((animProgress - lineStartTime) / (lineEndTime - lineStartTime)).coerceIn(0f, 1f)
+            }
+            if (segmentProgress <= 0f) continue
+
+            val endX = pa.x + (pb.x - pa.x) * segmentProgress
+            val endY = pa.y + (pb.y - pa.y) * segmentProgress
+            val alpha = if (isSelected) 0.6f else 0.32f
+            val strokeWidth = if (isSelected) 2.5f else 1.5f
             drawLine(
-                color = lineColor.copy(alpha = 0.32f),
+                color = lineColor.copy(alpha = alpha),
                 start = Offset(pa.x, pa.y),
-                end = Offset(pb.x, pb.y),
-                strokeWidth = 1.5f,
+                end = Offset(endX, endY),
+                strokeWidth = strokeWidth,
             )
+        }
+
+        // Highlight selected constellation's stars with a localized glow.
+        if (isSelected && animProgress > 0.5f) {
+            for ((aName, bName) in c.lines) {
+                for (name in listOf(aName, bName)) {
+                    val rs = starMap[name] ?: continue
+                    if (rs.altitudeDeg < -2) continue
+                    val pt = p.project(rs.azimuthDeg, rs.altitudeDeg) ?: continue
+                    drawCircle(
+                        color = lineColor.copy(alpha = 0.15f),
+                        radius = 10f,
+                        center = Offset(pt.x, pt.y),
+                    )
+                }
+            }
         }
     }
 }
@@ -164,7 +250,7 @@ private fun starColor(m: Double): Color = when {
 
 private fun DrawScope.drawStars(
     p: SkyProjection, snap: SkySnapshot, t: Long, tint: Color?,
-    targets: MutableList<HitTarget>, tm: TextMeasurer, showLabels: Boolean,
+    tm: TextMeasurer, showLabels: Boolean,
 ) {
     for (rs in snap.stars) {
         if (rs.altitudeDeg < -2) continue
@@ -172,7 +258,6 @@ private fun DrawScope.drawStars(
         val tw = 0.8 + 0.2 * sin(t / 600.0 + rs.star.rightAscensionDeg)
         val r = magToRadius(rs.star.magnitude) * tw.toFloat()
         drawCircle(color = tint ?: starColor(rs.star.magnitude), radius = r, center = Offset(pt.x, pt.y))
-        targets += HitTarget(pt.x, pt.y, r + 15f, SkyObject.StarObject(rs.star))
         if (showLabels && rs.altitudeDeg > 2 && rs.star.magnitude <= 1.5) {
             drawSkyLabel(tm, rs.star.name, pt.x, pt.y, tint ?: Color(0xFFAEBBE8))
         }
@@ -181,7 +266,7 @@ private fun DrawScope.drawStars(
 
 private fun DrawScope.drawPlanets(
     p: SkyProjection, snap: SkySnapshot, tint: Color?,
-    targets: MutableList<HitTarget>, tm: TextMeasurer, showLabels: Boolean,
+    tm: TextMeasurer, showLabels: Boolean,
 ) {
     for (rp in snap.planets) {
         if (rp.altitudeDeg < -2) continue
@@ -197,14 +282,13 @@ private fun DrawScope.drawPlanets(
                 center = Offset(pt.x, pt.y), style = Stroke(width = 1.8f),
             )
         }
-        targets += HitTarget(pt.x, pt.y, radius + 16f, SkyObject.PlanetObject(rp.planet))
         if (showLabels) drawSkyLabel(tm, rp.planet.displayName, pt.x, pt.y, color)
     }
 }
 
 private fun DrawScope.drawSatellites(
     p: SkyProjection, snap: SkySnapshot, t: Long, tint: Color?,
-    targets: MutableList<HitTarget>, tm: TextMeasurer, showLabels: Boolean,
+    tm: TextMeasurer, showLabels: Boolean,
 ) {
     for (rsat in snap.satellites) {
         if (rsat.altitudeDeg < 0) continue
@@ -212,7 +296,6 @@ private fun DrawScope.drawSatellites(
         val blink = (0.6 + 0.4 * sin(t / 180.0)).toFloat().coerceIn(0f, 1f)
         val color = tint ?: Color(rsat.satellite.colorHex)
         drawCircle(color = color.copy(alpha = blink), radius = 3.4f, center = Offset(pt.x, pt.y))
-        targets += HitTarget(pt.x, pt.y, 14f, SkyObject.SatelliteObject(rsat.satellite))
         if (showLabels) drawSkyLabel(tm, "${rsat.satellite.emoji} ${rsat.satellite.shortName}", pt.x, pt.y, color)
     }
 }
@@ -241,14 +324,181 @@ private fun DrawScope.drawCompass(p: SkyProjection) {
 
 private fun DrawScope.drawGroundGlow() {
     drawRect(
-        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+        brush = Brush.verticalGradient(
             colors = listOf(Color(0x00040513), Color(0xE6080A18)),
             startY = size.height * 0.72f,
             endY = size.height,
         ),
         topLeft = Offset(0f, size.height * 0.72f),
-        size = androidx.compose.ui.geometry.Size(size.width, size.height * 0.28f),
+        size = Size(size.width, size.height * 0.28f),
     )
+}
+
+// ── Milky Way band ──────────────────────────────────────────────────────────────
+
+/**
+ * Deterministic noise field for the Milky Way band. Seeded so the band is stable across frames
+ * but varies spatially. Each entry: [azimuth, altitudeOffset, brightness, sizeFactor].
+ */
+private val milkyWayField: List<FloatArray> by lazy {
+    val rng = Random(42L)
+    // The Milky Way roughly follows a great circle; we approximate it as a band centred at a
+    // slowly varying altitude across azimuth, with scatter above and below.
+    List(600) {
+        val az = rng.nextDouble(360.0)
+        val bandCenter = 30.0 + 25.0 * cos(az * Math.PI / 180.0 + 1.2)
+        val alt = bandCenter + rng.nextDouble(-18.0, 18.0)
+        floatArrayOf(
+            az.toFloat(),
+            alt.toFloat(),
+            (rng.nextDouble(0.15, 0.55)).toFloat(),
+            (rng.nextDouble(0.5, 2.5)).toFloat(),
+        )
+    }
+}
+
+private fun DrawScope.drawMilkyWay(p: SkyProjection, t: Long, tint: Color?) {
+    // Slow drift to give the band a living feel without distracting.
+    val drift = sin(t / 9000.0) * 1.5
+    // Hoist colour outside the per-particle loop — Color is a value class so no allocation,
+    // but this avoids re-evaluating the branch 600 times per frame.
+    val particleColor = tint ?: Color(0xFFB8C6E8)
+    for (b in milkyWayField) {
+        val pt = p.project(b[0].toDouble(), (b[1] + drift)) ?: continue
+        val tw = (0.7 + 0.3 * sin(t / 4000.0 + b[0])).toFloat()
+        val alpha = (b[2] * tw * 0.25f).coerceIn(0f, 0.18f)
+        drawCircle(
+            color = particleColor.copy(alpha = alpha),
+            radius = b[3] * 3f,
+            center = Offset(pt.x, pt.y),
+        )
+    }
+    // Subtle radial glow layer to add depth to the band.
+    val bandCenterAz = 180.0 + drift * 5
+    val bandCenterPt = p.project(bandCenterAz, 42.0 + drift) ?: return
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(
+                (tint ?: Color(0xFF6B7FB5)).copy(alpha = 0.06f),
+                Color.Transparent,
+            ),
+            radius = size.minDimension * 0.45f,
+        ),
+        center = Offset(bandCenterPt.x, bandCenterPt.y),
+        radius = size.minDimension * 0.45f,
+    )
+}
+
+// ── Shooting stars (meteors) ────────────────────────────────────────────────────
+
+/** A single meteor with a curved trajectory and fading particle trail. */
+private data class Meteor(
+    val startX: Float,
+    val startY: Float,
+    val velocityX: Float,
+    val velocityY: Float,
+    val curvatureX: Float,
+    val curvatureY: Float,
+    val spawnTimeMs: Long,
+    val lifeMs: Long,
+    val trailLength: Int,
+)
+
+/**
+ * Manages spawning, lifetime, and removal of meteors.
+ * Called once per frame from the Canvas draw phase where canvas dimensions are available.
+ */
+private class MeteorManager {
+    private val active = mutableListOf<Meteor>()
+    private var nextSpawnMs: Long = 3_000L
+    private val rng = Random(System.currentTimeMillis())
+
+    fun update(frameTimeMs: Long, nightMode: Boolean, canvasWidth: Float, canvasHeight: Float) {
+        // Spawn new meteors at random intervals (less frequent in night mode to preserve dark adaptation).
+        val spawnIntervalMin = if (nightMode) 8_000L else 4_000L
+        val spawnIntervalMax = if (nightMode) 20_000L else 12_000L
+        if (frameTimeMs > nextSpawnMs) {
+            spawn(frameTimeMs, canvasWidth, canvasHeight)
+            nextSpawnMs = frameTimeMs + rng.nextLong(spawnIntervalMin, spawnIntervalMax)
+        }
+        // Remove expired meteors.
+        active.removeAll { frameTimeMs - it.spawnTimeMs > it.lifeMs }
+    }
+
+    private fun spawn(frameTimeMs: Long, canvasWidth: Float, canvasHeight: Float) {
+        // Spawn from upper portion of the screen, travelling diagonally downward.
+        // Uses actual canvas dimensions so meteors cover the full screen on any device.
+        val startX = rng.nextFloat() * canvasWidth
+        val startY = rng.nextFloat() * (canvasHeight * 0.4f)
+        val angle = rng.nextDouble(Math.PI / 6.0, Math.PI / 2.5) // 30°–72° downward
+        val speed = (0.6f + rng.nextFloat() * 0.8f) * 600f
+        val vx = (cos(angle) * speed).toFloat() * (if (rng.nextBoolean()) 1f else -1f)
+        val vy = (sin(angle) * speed).toFloat()
+        val curvature = speed * 0.15f
+        active += Meteor(
+            startX = startX,
+            startY = startY,
+            velocityX = vx,
+            velocityY = vy,
+            curvatureX = (rng.nextFloat() * 2f - 1f) * curvature,
+            curvatureY = (rng.nextFloat() * 2f - 1f) * curvature * 0.3f,
+            spawnTimeMs = frameTimeMs,
+            lifeMs = rng.nextLong(900L, 1800L),
+            trailLength = rng.nextInt(12, 25),
+        )
+    }
+
+    fun activeMeteors(): List<Meteor> = active
+}
+
+private fun DrawScope.drawShootingStars(manager: MeteorManager, t: Long, tint: Color?) {
+    for (meteor in manager.activeMeteors()) {
+        val age = (t - meteor.spawnTimeMs).toFloat()
+        if (age < 0f) continue
+        val progress = age / meteor.lifeMs
+        if (progress > 1f) continue
+
+        // Fade in quickly, hold, then fade out.
+        val alpha = when {
+            progress < 0.15f -> (progress / 0.15f)
+            progress > 0.75f -> ((1f - progress) / 0.25f)
+            else -> 1f
+        }.coerceIn(0f, 1f)
+
+        // Compute current head position with quadratic curve.
+        val headX = meteor.startX + meteor.velocityX * age / 1000f + meteor.curvatureX * progress * progress
+        val headY = meteor.startY + meteor.velocityY * age / 1000f + meteor.curvatureY * progress * progress
+
+        // Draw trail as a series of fading circles from head backward.
+        val trailColor = tint ?: Color(0xFFFFFFFF)
+        for (i in 0 until meteor.trailLength) {
+            val trailProgress = progress - i * 0.012f
+            if (trailProgress < 0f) break
+            val trailAge = trailProgress * meteor.lifeMs
+            val tx = meteor.startX + meteor.velocityX * trailAge / 1000f + meteor.curvatureX * trailProgress * trailProgress
+            val ty = meteor.startY + meteor.velocityY * trailAge / 1000f + meteor.curvatureY * trailProgress * trailProgress
+            val trailAlpha = alpha * (1f - i.toFloat() / meteor.trailLength) * 0.8f
+            val radius = (2.5f - i * 0.08f).coerceAtLeast(0.3f)
+            drawCircle(
+                color = trailColor.copy(alpha = trailAlpha),
+                radius = radius,
+                center = Offset(tx, ty),
+            )
+        }
+
+        // Bright head.
+        drawCircle(
+            color = trailColor.copy(alpha = alpha),
+            radius = 2.5f,
+            center = Offset(headX, headY),
+        )
+        // Glow around head.
+        drawCircle(
+            color = (tint ?: Color(0xFFDDEEFF)).copy(alpha = alpha * 0.3f),
+            radius = 6f,
+            center = Offset(headX, headY),
+        )
+    }
 }
 
 private fun DrawScope.drawReticle(p: SkyProjection, snap: SkySnapshot, selected: SkyObject, t: Long) {
